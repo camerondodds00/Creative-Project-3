@@ -1,33 +1,50 @@
 <template>
 <div>
-  <h1> Browse Selection </h1>
+  <h1 v-if="this.$root.$data.currentUser"> Browse Selection </h1>
+  <h1 v-else> Sign in to view our collection </h1>
 
   <div class="checkout-container">
     <div class="checkout-item" v-for="book in collection" :key="book.id">
 
       <div class="image">
-        <img :src="'/images/'+book.image">
+        <img :src="book.path" />
       </div>
 
       <div class="info">
-      <h8> {{book.name}}</h8>
-      <p> Series: {{book.series}} </p>
-      <p> Author: {{book.author}} </p>
-      <p> Average Rating: {{average(book.id)}} </p>
-      <star-rating @rating-selected="setRating" v-on:click="setID(book.id)" v-bind:increment="0.5" v-bind:show-rating="false" v-bind:star-size="30" active-color="#F20056"></star-rating>
-      <button class="submitRating" v-on:click="setID(book.id)"> Submit Rating </button>
+        <h8> {{book.title}}</h8>
+        <p> Series: {{book.series}} </p>
+        <p> Author: {{book.author}} </p>
+          <p> success </p>
+        <p v-if="book.user.username === 'Admin'">Status: Available</p>
+        <p v-else>Status: Checked Out</p>
       </div>
       <div class="format-button">
-      <button class="auto" v-on:click="checkoutBook(book)">Checkout Book</button>
+        <div v-if="book.user.username === 'Admin'">
+        <button class="auto" v-on:click="checkoutBook(book)">Checkout Book</button>
       </div>
+    </div>
+
     </div>
   </div>
 </div>
 </template>
 
 <script>
+import axios from 'axios';
 export default {
   name: 'bookCollection',
+  data() {
+    return {
+      currentID: '',
+      currentRating: '',
+      ratings: {},
+      user: null,
+    }
+  },
+  created() {
+    this.user = this.$root.$data.currentUser;
+    console.log(this.user);
+  },
   props: {
     collection: Array
   },
@@ -40,14 +57,20 @@ export default {
         return (averageRating).toFixed(1);
       }
     },
-    checkoutBook(book) {
-      this.$root.$data.circulating.push(book);
+    async checkoutBook(book) {
+      try {
+        await axios.put(`/api/users/${this.user._id}/checkouts/${book._id}`, {
+        });
+        return true;
+      } catch (error) {
+        console.log(error);
+      }
     },
-    setRating(rating){
-      this.currentRating=rating;
+    setRating(rating) {
+      this.currentRating = rating;
     },
     setID(bookID) {
-      this.currentID=bookID;
+      this.currentID = bookID;
       if (!(this.currentID in this.ratings))
         this.$set(this.ratings, this.currentID, {
           sum: 0,
@@ -57,41 +80,24 @@ export default {
       this.ratings[this.currentID].total += 1;
     }
   },
-  data() {
-    return {
-      currentID: '',
-      currentRating: '',
-      ratings: {},
-    }
-  },
   components: {
 
   },
   computed: {
-    /*
-    average(bookID) {
-      if (!(bookID in this.ratings)) {
-        return '';
-      } else {
-        let averageRating = this.ratings[bookID].sum / this.ratings[bookID].total;
-        return (averageRating).toFixed(1);
-      }
-    },
-    */
+
   }
 }
 </script>
 
 <style scoped>
-
-p{
+p {
   font-size: 40 px;
 }
 
 .priceFormat {
   background: #F2921D;
   color: #000;
-  height:20px;
+  height: 20px;
   text-align: center;
 }
 
@@ -134,7 +140,7 @@ p{
   background: #EBCA97;
   color: #000;
   padding: 10px 30px;
-  height: 180px;
+  height: 100px;
 }
 
 .info h1 {
@@ -162,13 +168,17 @@ button {
   border: none;
 }
 
+.format-buttonOne {
+  display:flex;
+}
 .format-button {
-
+  display:flex;
 }
 
 .auto {
   margin-left: auto;
 }
+
 .submitRating {
   font-sie: 20px;
 }

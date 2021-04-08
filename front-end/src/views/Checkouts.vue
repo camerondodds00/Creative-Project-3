@@ -2,22 +2,21 @@
 <div>
   <h1> Your Checkouts </h1>
 
-  <h1 v-if="this.$root.$data.circulating.length === 0"> You haven't checked anything out yet! </h1>
+  <h1 v-if="userCheckouts.length === 0"> You haven't checked anything out yet! </h1>
 
   <div class="checkout-container">
-    <div class="checkout-item" v-for="book in circulating" :key="book.id">
+    <div class="checkout-item" v-for="book in userCheckouts" :key="book.id">
 
       <div class="image">
-        <img :src="'/images/'+book.image">
+        <img :src="book.path" />
       </div>
-
       <div class="info">
-      <h8> Title: {{book.name}}</h8>
-      <p> Series: {{book.series}} </p>
-      <p> Author: {{book.author}} </p>
+        <h8> Title: {{book.title}}</h8>
+        <p> Series: {{book.series}} </p>
+        <p> Author: {{book.author}} </p>
       </div>
       <div class="format-button">
-      <button class="auto" v-on:click="returnBook(book.id)">Return Book</button>
+        <button class="auto" v-on:click="returnBook(book)">Return Book</button>
       </div>
     </div>
   </div>
@@ -25,24 +24,43 @@
 </template>
 
 <script>
+import axios from 'axios';
 export default {
   name: 'Checkouts',
   components: {},
   data() {
-    return {}
+    return {
+      userCheckouts: [],
+    }
+  },
+  created() {
+    this.user = this.$root.$data.currentUser;
+    this.getCheckouts();
   },
   computed: {
     circulating() {
-      return this.$root.$data.circulating;
+      return this.userCheckouts;
     }
   },
   methods: {
-    returnBook(itemID) {
-      for (let index = 0; index < this.$root.$data.circulating.length; index++) {
-        if (this.$root.$data.circulating[index].id === itemID) {
-          this.$root.$data.circulating.splice(index, 1);
-          break;
-        }
+    async getCheckouts() {
+      try {
+        let response = await axios.get(`/api/users/${this.$root.$data.currentUser._id}/checkouts`);
+        console.log("Attempting to get information")
+        console.log(response.data);
+        this.userCheckouts = response.data;
+        return true;
+      } catch (error) {
+        console.log(error);
+      }
+    },
+    async returnBook(book) {
+      try {
+        await axios.put(`/api/users/${this.user._id}/return/${book._id}`, {});
+        this.getCheckouts();
+        return true;
+      } catch (error) {
+        console.log(error);
       }
     }
   }
@@ -50,15 +68,14 @@ export default {
 </script>
 
 <style scoped>
-
-p{
+p {
   font-size: 40 px;
 }
 
 .priceFormat {
   background: #F2921D;
   color: #000;
-  height:20px;
+  height: 20px;
   text-align: center;
 }
 
@@ -128,9 +145,7 @@ button {
   border: none;
 }
 
-.format-button {
-
-}
+.format-button {}
 
 .auto {
   margin-left: auto;

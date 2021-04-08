@@ -4,6 +4,7 @@
     <div id="brand">
       <router-link to="/">
         <img src="/images/LibraryLogo.jpg">
+        <p> Home </p>
       </router-link>
     </div>
     <div id="side">
@@ -13,14 +14,28 @@
           <p>View Checkouts</p>
         </div>
       </router-link>
+      <router-link to="/Users">
+        <div class="menu-item browse">
+          <img src="/images/checkout-clip.png">
+          <p v-if="this.$root.$data.currentUser">User: {{this.$root.$data.currentUser.username}}</p>
+          <p v-else> User Settings </p>
+        </div>
+      </router-link>
+      <router-link to="/Admin">
+        <div class="menu-item browse">
+          <img src="/images/checkout-clip.png">
+          <p>Admin</p>
+        </div>
+      </router-link>
     </div>
   </div>
   <router-view />
   <div class="footer">
-        <p><a href='https://github.com/camerondodds00/Creative-Project-3.git' target='_blank'>Github: @camerondodds00</a></p>
+        <p><a href='https://github.com/camerondodds00/Creative-Project-4' target='_blank'>Github: @camerondodds00</a></p>
     </div>
 </div>
 </template>
+
 
 <style>
 * {

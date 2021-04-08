@@ -3,14 +3,14 @@ import App from './App.vue'
 import router from './router'
 
 Vue.config.productionTip = false
-Vue.component('star-rating', VueStarRating.default);
+//Vue.component('star-rating', VueStarRating.default);
 
-import mock from './mock-data.js'
+//import mock from './mock-data.js'
 
 let data = {
-  collection: mock,
+  collection: [],
   circulating: [],
-  ratings: {}
+  currentUser: null,
 }
 
 new Vue({
