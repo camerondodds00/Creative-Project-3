@@ -16,7 +16,8 @@
           <input v-model="author" placeholder="Author">
           <p></p>
           <input type="file" name="photo" @change="fileChanged">
-          <button @click="upload">Upload</button>
+
+          <button @click="upload" v-if="this.uploadSuccess === false">Upload</button>
         </div>
         <div class="upload" v-if="addBook">
           <h2>{{addBook.title}}:</h2>
@@ -25,6 +26,7 @@
           <img :src="addBook.path" />
         </div>
       </div>
+
       <div class="heading">
         <div class="circle">2</div>
         <h2>Edit/Delete a Book</h2>
@@ -70,6 +72,7 @@ export default {
       title: "",
       file: null,
       addBook: null,
+      uploadSuccess: null,
       books: [],
       findTitle: "",
       findBook: null,
@@ -86,6 +89,7 @@ export default {
     }
   },
   created() {
+    this.uploadSuccess = false;
     this.getBooks();
     this.user = this.$root.$data.currentUser;
   },
@@ -106,6 +110,7 @@ export default {
           path: r1.data.path
         });
         this.addBook = r2.data;
+        this.uploadSuccess = true;
         this.getBooks();
       } catch (error) {
         console.log(error);
