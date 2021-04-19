@@ -46,8 +46,6 @@ export default {
     async getCheckouts() {
       try {
         let response = await axios.get(`/api/users/${this.$root.$data.currentUser._id}/checkouts`);
-        console.log("Attempting to get information")
-        console.log(response.data);
         this.userCheckouts = response.data;
         return true;
       } catch (error) {

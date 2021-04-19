@@ -1,5 +1,8 @@
 const express = require('express');
 const bodyParser = require("body-parser");
+const argon2 = require("argon2");
+const mongoose = require('mongoose');
+
 
 const app = express();
 app.use(bodyParser.json());
@@ -7,12 +10,27 @@ app.use(bodyParser.urlencoded({
   extended: false
 }));
 
-const mongoose = require('mongoose');
 
 // connect to the database
 mongoose.connect('mongodb://localhost:27017/library', {
   useNewUrlParser: true
 });
+
+//configure cookies to work.
+const cookieParser = require("cookie-parser");
+app.use(cookieParser());
+
+const cookieSession = require('cookie-session');
+app.use(cookieSession({
+  name: 'session',
+  keys: [
+    'secretValue'
+  ],
+  cookie: {
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}));
+
 
 // Configure multer so that it will upload to '../front-end/public/images'
 const multer = require('multer')
@@ -25,16 +43,106 @@ const upload = multer({
 
 // Create a scheme for users
 const userSchema = new mongoose.Schema({
+  firstName: String,
+  lastName: String,
   username: String,
+  password: String,
 });
+
+// This is a hook that will be called before a user record is saved,
+// allowing us to be sure to salt and hash the password first.
+userSchema.pre('save', async function(next) {
+  // only hash the password if it has been modified (or is new)
+  if (!this.isModified('password'))
+    return next();
+
+  try {
+    // generate a hash. argon2 does the salting and hashing for us
+    const hash = await argon2.hash(this.password);
+    // override the plaintext password with the hashed one
+    this.password = hash;
+    next();
+  } catch (error) {
+    console.log(error);
+    next(error);
+  }
+});
+
+// This is a method that we can call on User objects to compare the hash of the
+// password the browser sends with the has of the user's true password stored in
+// the database.
+userSchema.methods.comparePassword = async function(password) {
+  try {
+    // note that we supply the hash stored in the database (first argument) and
+    // the plaintext password. argon2 will do the hashing and salting and
+    // comparison for us.
+    const isMatch = await argon2.verify(this.password, password);
+    return isMatch;
+  } catch (error) {
+    return false;
+  }
+};
+
+// This is a method that will be called automatically any time we convert a user
+// object to JSON. It deletes the password hash from the object. This ensures
+// that we never send password hashes over our API, to avoid giving away
+// anything to an attacker.
+userSchema.methods.toJSON = function() {
+  var obj = this.toObject();
+  delete obj.password;
+  return obj;
+}
 
 // Create a model for users
 const User = mongoose.model('User', userSchema);
 
+/* Middleware */
+
+// middleware function to check for logged-in users
+const validUser = async (req, res, next) => {
+  if (!req.session.userID)
+    return res.status(403).send({
+      message: "not logged in"
+    });
+  try {
+    const user = await User.findOne({
+      _id: req.session.userID
+    });
+    if (!user) {
+      return res.status(403).send({
+        message: "not logged in"
+      });
+    }
+    // set the user field in the request
+    req.user = user;
+  } catch (error) {
+    // Return an error if user does not exist.
+    return res.status(403).send({
+      message: "not logged in"
+    });
+  }
+
+  // if everything succeeds, move to the next middleware
+  next();
+};
+
+/* API Endpoints */
+
 // Create a user
 app.post('/api/users', async (req, res) => {
+  // Make sure that the form coming from the browser includes all required fields,
+  // otherwise return an error. A 400 error means the request was
+  // malformed.
+  if (!req.body.firstName || !req.body.lastName || !req.body.username || !req.body.password)
+    return res.status(400).send({
+      message: "first name, last name, username and password are required"
+    });
+
   const user = new User({
+    firstName: req.body.firstName,
+    lastName: req.body.lastName,
     username: req.body.username,
+    password: req.body.password,
   });
   try {
     await user.save();
@@ -52,6 +160,8 @@ app.put('/api/users/:id', async (req, res) => {
       _id: req.params.id
     });
     user.username = req.body.username;
+    user.firstName = req.body.firstName;
+    user.lastName = req.body.lastName;
     user.save();
     res.sendStatus(200);
   } catch (error) {
@@ -83,6 +193,46 @@ app.delete('/api/users/:id', async (req, res) => {
     res.sendStatus(500);
   }
 });
+
+// login a user
+app.post('/api/users/login', async (req, res) => {
+  // Make sure that the form coming from the browser includes a username and a
+  // password, otherwise return an error.
+  if (!req.body.username || !req.body.password)
+    return res.sendStatus(400);
+
+  try {
+    //  lookup user record
+    const user = await User.findOne({
+      username: req.body.username
+    });
+    console.log(user);
+    // Return an error if user does not exist.
+    if (!user)
+      return res.status(403).send({
+        message: "username or password is wrong"
+      });
+
+    // Return the SAME error if the password is wrong. This ensure we don't
+    // leak any information about which users exist.
+    if (!await user.comparePassword(req.body.password))
+      return res.status(403).send({
+        message: "username or password is wrong"
+      });
+      console.log(user._id);
+    // set user session info
+    req.session.userID = user._id;
+
+    return res.send({
+      user: user
+    });
+
+  } catch (error) {
+    console.log(error);
+    return res.sendStatus(500);
+  }
+});
+
 
 
 // Create a scheme for books in the library: a title, series, author, rating, and a path to an image.
@@ -163,8 +313,6 @@ app.get('/api/users/:userID/books', async (req, res) => {
       return;
     }*/
     let books = await Book.find().populate('user');
-    console.log("Population test:");
-    console.log(books);
     res.send(books);
   } catch (error) {
     console.log(error);

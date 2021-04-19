@@ -27,7 +27,7 @@
       </div>
       <div class="heading">
         <div class="circle">2</div>
-        <h2>Edit/Delete an Book</h2>
+        <h2>Edit/Delete a Book</h2>
       </div>
       <div class="edit">
         <div class="form">
@@ -106,6 +106,7 @@ export default {
           path: r1.data.path
         });
         this.addBook = r2.data;
+        this.getBooks();
       } catch (error) {
         console.log(error);
       }
